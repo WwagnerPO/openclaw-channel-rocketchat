@@ -258,6 +258,7 @@ export const rocketChatPlugin: ChannelPlugin<ResolvedRocketChatAccount> = {
         accountId: account.accountId,
         config: ctx.cfg,
         runtime: ctx.runtime,
+        log: ctx.log,
         abortSignal: ctx.abortSignal,
         statusSink: (patch) => ctx.setStatus({ accountId: ctx.accountId, ...patch }),
       });

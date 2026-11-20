@@ -83,6 +83,8 @@ export type MonitorRocketChatOpts = {
   accountId?: string;
   config?: OpenClawConfig;
   runtime?: RuntimeEnv;
+  /** Gateway channel log sink (ctx.log). Preferred: shows up in the gateway journal. */
+  log?: { info: (msg: string) => void; warn?: (msg: string) => void; error: (msg: string) => void; debug?: (msg: string) => void };
   abortSignal?: AbortSignal;
   statusSink?: (patch: Partial<ChannelAccountSnapshot>) => void;
 };
@@ -276,7 +278,7 @@ export async function monitorRocketChatProvider(
   opts: MonitorRocketChatOpts
 ): Promise<() => void> {
   const core = getRocketChatRuntime();
-  const logger = core?.logging?.getChildLogger?.({ module: "rocketchat" }) ?? {
+  const logger = opts.log ?? core?.logging?.getChildLogger?.({ module: "rocketchat" }) ?? {
     info: console.log,
     debug: console.log,
     error: console.error,
@@ -461,7 +463,14 @@ export async function monitorRocketChatProvider(
   });
 
   // Connect and subscribe to all rooms
-  await realtime.connect();
+  logger.info?.(`[${account.accountId}] connecting realtime (DDP) to ${baseUrl} as userId=${userId}`);
+  try {
+    await realtime.connect();
+  } catch (err) {
+    logger.error?.(`[${account.accountId}] realtime connect failed: ${err instanceof Error ? err.message : String(err)}`);
+    realtime.disconnect();
+    throw err;
+  }
   
   // Subscribe to current rooms
   await refreshSubscriptions();

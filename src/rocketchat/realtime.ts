@@ -13,7 +13,7 @@ export type DDPMessage = {
   method?: string;
   params?: unknown[];
   result?: unknown;
-  error?: { error: string; message: string };
+  error?: { error?: string | number; message?: string; reason?: string };
   collection?: string;
   fields?: Record<string, unknown>;
   session?: string;
@@ -71,6 +71,8 @@ export type IncomingMessage = {
   mentions?: Array<{ _id: string; username?: string; name?: string }>;
   _updatedAt?: { $date: number } | string;
 };
+
+const CONNECT_TIMEOUT_MS = 30_000;
 
 export class RocketChatRealtime {
   private ws: WebSocket | null = null;
@@ -145,12 +147,38 @@ export class RocketChatRealtime {
         this.send({ msg: "connect", version: "1", support: ["1"] } as unknown as DDPMessage);
       });
 
+      // Never hang forever: fail connect() if DDP connect + login don't finish in time.
+      const connectTimer = setTimeout(() => {
+        if (settled) return;
+        const err = new Error(`DDP connect/login timed out after ${CONNECT_TIMEOUT_MS / 1000}s (${wsUrl})`);
+        rejectOnce(err);
+        try { this.ws?.terminate(); } catch { /* ignore */ }
+      }, CONNECT_TIMEOUT_MS);
+      connectTimer.unref?.();
+
       this.ws.on("message", async (data) => {
+        let msg: DDPMessage;
         try {
-          const msg = JSON.parse(data.toString()) as DDPMessage;
-          await this.handleMessage(msg, resolveOnce);
+          msg = JSON.parse(data.toString()) as DDPMessage;
         } catch (err) {
           this.opts.logger?.debug?.(`Failed to parse message: ${err}`);
+          return;
+        }
+        try {
+          await this.handleMessage(msg, () => {
+            clearTimeout(connectTimer);
+            resolveOnce();
+          });
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error(String(err));
+          if (msg.msg === "connected" && !this.isConnected) {
+            // Login (resume token) failed: surface it instead of hanging.
+            clearTimeout(connectTimer);
+            rejectOnce(new Error(`DDP login failed: ${e.message}`));
+            try { this.ws?.close(); } catch { /* ignore */ }
+          } else {
+            this.opts.onError?.(e);
+          }
         }
       });
 
@@ -213,7 +241,7 @@ export class RocketChatRealtime {
           if (pending) {
             this.pendingCalls.delete(msg.id);
             if (msg.error) {
-              pending.reject(new Error(msg.error.message));
+              pending.reject(new Error(msg.error.message || msg.error.reason || String(msg.error.error ?? JSON.stringify(msg.error))));
             } else {
               pending.resolve(msg.result);
             }

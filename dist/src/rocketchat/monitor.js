@@ -175,7 +175,7 @@ async function fetchFileToTemp(url, authToken, userId, mimeType, fileName) {
 }
 export async function monitorRocketChatProvider(opts) {
     const core = getRocketChatRuntime();
-    const logger = core?.logging?.getChildLogger?.({ module: "rocketchat" }) ?? {
+    const logger = opts.log ?? core?.logging?.getChildLogger?.({ module: "rocketchat" }) ?? {
         info: console.log,
         debug: console.log,
         error: console.error,
@@ -332,7 +332,15 @@ export async function monitorRocketChatProvider(opts) {
         },
     });
     // Connect and subscribe to all rooms
-    await realtime.connect();
+    logger.info?.(`[${account.accountId}] connecting realtime (DDP) to ${baseUrl} as userId=${userId}`);
+    try {
+        await realtime.connect();
+    }
+    catch (err) {
+        logger.error?.(`[${account.accountId}] realtime connect failed: ${err instanceof Error ? err.message : String(err)}`);
+        realtime.disconnect();
+        throw err;
+    }
     // Subscribe to current rooms
     await refreshSubscriptions();
     // Try to subscribe to subscription change notifications (best-effort).
