@@ -31,6 +31,8 @@ export type RealtimeOpts = {
   onDisconnect?: (reason?: string) => void;
   onError?: (error: Error) => void;
   logger?: { debug?: (msg: string) => void; info?: (msg: string) => void };
+  /** Max time for DDP connect + login before connect() rejects. Default 30000 ms. */
+  connectTimeoutMs?: number;
 };
 
 export type RocketChatAttachment = {
@@ -72,7 +74,7 @@ export type IncomingMessage = {
   _updatedAt?: { $date: number } | string;
 };
 
-const CONNECT_TIMEOUT_MS = 30_000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
 
 export class RocketChatRealtime {
   private ws: WebSocket | null = null;
@@ -148,12 +150,13 @@ export class RocketChatRealtime {
       });
 
       // Never hang forever: fail connect() if DDP connect + login don't finish in time.
+      const connectTimeoutMs = this.opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
       const connectTimer = setTimeout(() => {
         if (settled) return;
-        const err = new Error(`DDP connect/login timed out after ${CONNECT_TIMEOUT_MS / 1000}s (${wsUrl})`);
+        const err = new Error(`DDP connect/login timed out after ${connectTimeoutMs / 1000}s (${wsUrl})`);
         rejectOnce(err);
         try { this.ws?.terminate(); } catch { /* ignore */ }
-      }, CONNECT_TIMEOUT_MS);
+      }, connectTimeoutMs);
       connectTimer.unref?.();
 
       this.ws.on("message", async (data) => {

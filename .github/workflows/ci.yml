@@ -43,5 +43,5 @@ jobs:
       - name: Import smoke test
         run: node --input-type=module -e 'const m = await import("./dist/index.js"); if (typeof m.default?.register !== "function") throw new Error("no register()"); console.log("ok", m.default.id)'
 
-      - name: Unit tests
-        run: node test/approval-commands.test.mjs
+      - name: Tests
+        run: npm test

@@ -14,7 +14,7 @@ Neutral, self-host friendly Rocket.Chat channel plugin for **OpenClaw**.
 >
 > | | |
 > |---|---|
-> | Fork version | **0.8.0** |
+> | Fork version | **0.8.1** |
 > | Tested with | OpenClaw **2026.11.6**, Node **24**, Rocket.Chat self-hosted |
 > | Install | from git (not published to npm, see [Install](#install)) |
 > | Changes vs upstream | see [CHANGELOG.md](CHANGELOG.md#080---2026-11-20-wwagnerpo-fork) |
@@ -173,7 +173,7 @@ nothing is compiled on install:
 ```bash
 cd ~/.openclaw/workspace   # wherever OpenClaw resolves plugins from
 # Pin a release tag (recommended)
-npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.0
+npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.1
 # or follow the main branch
 npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git
 ```
@@ -444,7 +444,7 @@ npm ci --ignore-scripts
 
 npm run typecheck   # tsc against the openclaw version pinned in package-lock (devDependency)
 npm run build       # writes dist/ — commit it! CI fails if dist/ is out of date
-node test/approval-commands.test.mjs
+npm test            # node:test suite (fake DDP server, token resolution, dedupe, approvals)
 ```
 
 When OpenClaw changes its plugin SDK again, bump the `openclaw` devDependency and run
@@ -809,7 +809,7 @@ rm ~/.openclaw/extensions/rocketchat  # if it's a broken symlink
 openclaw doctor --fix
 # or manually:
 # (fork) install from git, see "Install from git" above
-cd ~/.openclaw/workspace && npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.0
+cd ~/.openclaw/workspace && npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.1
 ```
 
 ### Config File Location Changed
