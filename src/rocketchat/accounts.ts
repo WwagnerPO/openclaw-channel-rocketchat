@@ -2,6 +2,8 @@
  * Rocket.Chat account resolution
  */
 
+import { readFileSync } from "node:fs";
+
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 
 export type RocketChatReplyMode = "thread" | "channel" | "auto";
@@ -140,7 +142,21 @@ export function resolveRocketChatAccount(opts: {
 
   if (authToken) {
     authTokenSource = "config";
-  } else if (accountId === DEFAULT_ACCOUNT_ID) {
+  } else if (config.authTokenFile) {
+    // Token stored in a file (e.g. chmod 600), keeps secrets out of openclaw.json.
+    try {
+      const fileToken = readFileSync(String(config.authTokenFile), "utf8").trim();
+      if (fileToken) {
+        authToken = fileToken;
+        authTokenSource = "file";
+      }
+    } catch (err) {
+      console.warn(
+        `[rocketchat] cannot read authTokenFile "${config.authTokenFile}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  if (!authToken && accountId === DEFAULT_ACCOUNT_ID) {
     const envToken = process.env.ROCKETCHAT_AUTH_TOKEN || process.env.OPENCLAW_ROCKETCHAT_AUTH_TOKEN;
     if (envToken) {
       authToken = envToken;

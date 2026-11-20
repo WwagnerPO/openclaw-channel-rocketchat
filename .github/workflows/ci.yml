@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "fork/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck (against the openclaw version in package-lock)
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: dist/ is up to date
+        run: |
+          if ! git diff --quiet -- dist; then
+            echo "dist/ is out of date. Run 'npm run build' and commit dist/."
+            git diff --stat -- dist
+            exit 1
+          fi
+          if [ -n "$(git ls-files --others --exclude-standard dist)" ]; then
+            echo "dist/ has uncommitted new files. Run 'npm run build' and commit dist/."
+            exit 1
+          fi
+
+      - name: Import smoke test
+        run: node --input-type=module -e 'const m = await import("./dist/index.js"); if (typeof m.default?.register !== "function") throw new Error("no register()"); console.log("ok", m.default.id)'
+
+      - name: Unit tests
+        run: node test/approval-commands.test.mjs
