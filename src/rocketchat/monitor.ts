@@ -5,13 +5,13 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import type {
-  ChannelAccountSnapshot,
-  OpenclawConfig,
-  RuntimeEnv,
-} from "openclaw/plugin-sdk";
+import type { ChannelAccountSnapshot } from "openclaw/plugin-sdk/channel-contract";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { PluginRuntime } from "openclaw/plugin-sdk/core";
+import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 
-import { buildRandomTempFilePath, createReplyPrefixContext } from "openclaw/plugin-sdk";
+import { buildRandomTempFilePath } from "openclaw/plugin-sdk/temp-path";
+import { createReplyPrefixContext } from "openclaw/plugin-sdk/channel-outbound";
 
 import {
   readChannelAllowFromStore,
@@ -81,7 +81,7 @@ export type MonitorRocketChatOpts = {
   userId?: string;
   baseUrl?: string;
   accountId?: string;
-  config?: OpenclawConfig;
+  config?: OpenClawConfig;
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   statusSink?: (patch: Partial<ChannelAccountSnapshot>) => void;
@@ -158,7 +158,7 @@ async function checkIsApprover(
   const user = await fetchUserByUsername(client, username);
   if (!user) return false;
   
-  return isApprover(client, user._id, username, approverPatterns);
+  return isApprover(client, user.userId, username, approverPatterns);
 }
 
 /**
@@ -281,7 +281,7 @@ export async function monitorRocketChatProvider(
     debug: console.log,
     error: console.error,
   };
-  const cfg = opts.config ?? core?.config?.loadConfig?.() ?? {};
+  const cfg = opts.config ?? (core?.config?.current?.() as OpenClawConfig | undefined) ?? {};
 
   const account = resolveRocketChatAccount({
     cfg,
@@ -391,7 +391,7 @@ export async function monitorRocketChatProvider(
       logger.info?.(`[${account.accountId}] Disconnected: ${reason ?? "unknown"}`);
       opts.statusSink?.({
         connected: false,
-        lastDisconnect: { at: Date.now(), reason },
+        lastDisconnect: { at: Date.now(), error: reason },
       });
     },
     onError: (err) => {
@@ -497,8 +497,8 @@ export async function monitorRocketChatProvider(
 async function handleIncomingMessage(
   msg: IncomingMessage,
   account: ResolvedRocketChatAccount,
-  cfg: OpenclawConfig,
-  core: RuntimeEnv,
+  cfg: OpenClawConfig,
+  core: PluginRuntime,
   getRoom: (roomId: string) => Promise<RocketChatRoom | null>,
   logger: { info?: (msg: string) => void; debug?: (msg: string) => void; error?: (msg: string) => void },
   statusSink?: (patch: { lastInboundAt?: number; lastOutboundAt?: number }) => void,
@@ -1299,7 +1299,7 @@ async function handleIncomingMessage(
     channel: "rocketchat",
     accountId: account.accountId,
     peer: {
-      kind: isGroup ? "group" : "dm",
+      kind: isGroup ? "group" : "direct",
       id: isGroup ? roomId : senderId,
     },
   }) ?? {

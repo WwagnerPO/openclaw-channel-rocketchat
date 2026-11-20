@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.8.0] - 2026-11-20 (fork WwagnerPO)
+
+Compatibilidad con OpenClaw 2026.11.6 (Node 24). Basado en la rama upstream `chore/sdk-2026.6-migration` (v0.7.1).
+
+### Fixed
+
+- **Runtime tipado como `RuntimeEnv`**: `api.runtime` es un `PluginRuntime`. Al tiparlo como `RuntimeEnv`, los cambios de API quedaban ocultos tras `?.` y fallaban en silencio (el canal se quedaba en "starting").
+- **`runtime.config.loadConfig()` ya no existe** → `runtime.config.current()`. Antes devolvía `undefined`, la config caía a `{}` y el envío no encontraba la cuenta.
+- **Ruteo de DMs**: `peer.kind` `"dm"` → `"direct"` (nuevo `ChatType` del SDK).
+- **Subpaths del SDK eliminados**: `plugin-sdk/config-types` → `plugin-sdk/core`; `plugin-sdk/channel-message` → `plugin-sdk/channel-outbound`.
+- `ChannelAccountSnapshot.authTokenSource` → `tokenSource`; `lastDisconnect.reason` → `lastDisconnect.error`.
+- `IncomingMessage.mentions` declarado (lo envía el DDP de Rocket.Chat); aprobadores usaban `user._id` en vez de `user.userId`.
+- Export duplicado de `RocketChatAttachment` en `src/rocketchat/index.ts`.
+
+### Changed
+
+- Se publica compilado: `main` y `openclaw.extensions` apuntan a `dist/index.js` (Node 24 no hace type-stripping dentro de `node_modules`). `dist/` se versiona para poder instalar directo desde git.
+- Scripts `build` y `typecheck`; `tsconfig.json` añadido.
+- `peerDependencies.openclaw` → `>=2026.11.6`.
+
+## [0.7.1] - 2026-06-19
+
+### Changed
+
+- **SDK import migration**: Migrated all imports from the deprecated `openclaw/plugin-sdk` barrel to focused `openclaw/plugin-sdk/<subpath>` entry points, clearing the `OPENCLAW_PLUGIN_SDK_COMPAT_DEPRECATED` warning under OpenClaw 2026.6.8. Also renamed `OpenclawPluginApi`/`OpenclawConfig` to the current `OpenClawPluginApi`/`OpenClawConfig` symbol names.
+- **channelConfigs metadata**: Added `channelConfigs.rocketchat` (with `schema`) to `openclaw.plugin.json`, reusing the existing Rocket.Chat config schema. Clears the "channel plugin manifest declares rocketchat without channelConfigs metadata" warning so the config schema and setup surfaces are available before runtime load.
+
+
 ## [0.6.1] - 2026-02-15
 
 ### Added

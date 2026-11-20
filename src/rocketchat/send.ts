@@ -2,6 +2,7 @@
  * Rocket.Chat message sending
  */
 
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -166,7 +167,7 @@ export async function sendMessageRocketChat(
 ): Promise<RocketChatSendResult> {
   const core = getRocketChatRuntime();
   const logger = core?.logging?.getChildLogger?.({ module: "rocketchat" });
-  const cfg = core?.config?.loadConfig?.() ?? {};
+  const cfg = (core?.config?.current?.() as OpenClawConfig | undefined) ?? {};
 
   const account = resolveRocketChatAccount({ cfg, accountId: opts.accountId });
   
@@ -299,7 +300,7 @@ export async function reactMessageRocketChat(
 ): Promise<void> {
   const core = getRocketChatRuntime();
   const logger = core?.logging?.getChildLogger?.({ module: "rocketchat" });
-  const cfg = core?.config?.loadConfig?.() ?? {};
+  const cfg = (core?.config?.current?.() as OpenClawConfig | undefined) ?? {};
 
   const account = resolveRocketChatAccount({ cfg, accountId: opts.accountId });
 

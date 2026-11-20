@@ -1,13 +1,13 @@
 {
   "name": "@cloudrise/openclaw-channel-rocketchat",
-  "version": "0.7.0",
-  "description": "Rocket.Chat channel plugin for OpenClaw (Cloudrise)",
+  "version": "0.8.0",
+  "description": "Rocket.Chat channel plugin for OpenClaw (fork WwagnerPO, compatible OpenClaw >= 2026.11)",
   "license": "MIT",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/index.js",
   "openclaw": {
     "extensions": [
-      "./index.ts"
+      "./dist/index.js"
     ],
     "channel": {
       "id": "rocketchat",
@@ -27,6 +27,27 @@
     "ws": "^8.14.0"
   },
   "peerDependencies": {
-    "openclaw": "*"
+    "openclaw": ">=2026.11.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
+    "openclaw": "^2026.11.6",
+    "typescript": "^5.9.3"
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WwagnerPO/openclaw-channel-rocketchat.git"
   }
 }
