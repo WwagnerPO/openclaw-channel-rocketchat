@@ -1,24 +1,49 @@
 # Changelog
 
-## [0.8.0] - 2026-11-20 (fork WwagnerPO)
+## [0.8.0] - 2026-11-20 (WwagnerPO fork)
 
-Compatibilidad con OpenClaw 2026.11.6 (Node 24). Basado en la rama upstream `chore/sdk-2026.6-migration` (v0.7.1).
+Compatibility with OpenClaw 2026.11.6 / Node 24. Based on the upstream branch
+`chore/sdk-2026.6-migration` (v0.7.1), which was never released. Tested in production
+(OpenClaw 2026.11.6 + self-hosted Rocket.Chat): connects, subscribes, replies to DMs.
 
 ### Fixed
 
-- **Runtime tipado como `RuntimeEnv`**: `api.runtime` es un `PluginRuntime`. Al tiparlo como `RuntimeEnv`, los cambios de API quedaban ocultos tras `?.` y fallaban en silencio (el canal se quedaba en "starting").
-- **`runtime.config.loadConfig()` ya no existe** → `runtime.config.current()`. Antes devolvía `undefined`, la config caía a `{}` y el envío no encontraba la cuenta.
-- **Ruteo de DMs**: `peer.kind` `"dm"` → `"direct"` (nuevo `ChatType` del SDK).
-- **Subpaths del SDK eliminados**: `plugin-sdk/config-types` → `plugin-sdk/core`; `plugin-sdk/channel-message` → `plugin-sdk/channel-outbound`.
+- **Runtime typed as `RuntimeEnv`**: `api.runtime` is a `PluginRuntime`. The wrong type hid SDK
+  API drift behind `?.` optional calls, so they silently returned `undefined`.
+- **`runtime.config.loadConfig()` no longer exists** → `runtime.config.current()`. Previously the
+  config fell back to `{}` and outbound sends could not resolve the account.
+- **DM routing**: `peer.kind` `"dm"` → `"direct"` (new SDK `ChatType`).
+- **DDP `connect()` could hang forever**: a failed resume-token login was swallowed as
+  "Failed to parse message" (debug level) and there was no timeout, so the channel stayed at
+  `starting Rocket.Chat channel` with no error. Now a failed login rejects `connect()` with the
+  server's reason, and connect + login time out after 30 s.
+- **Gateway stop/restart stuck in `deactivating`**: abort now interrupts an in-flight `connect()`.
+- DDP error messages fall back to `reason` / `error` when `message` is missing.
+- Removed SDK subpaths: `plugin-sdk/config-types` → `plugin-sdk/core`;
+  `plugin-sdk/channel-message` → `plugin-sdk/channel-outbound`.
 - `ChannelAccountSnapshot.authTokenSource` → `tokenSource`; `lastDisconnect.reason` → `lastDisconnect.error`.
-- `IncomingMessage.mentions` declarado (lo envía el DDP de Rocket.Chat); aprobadores usaban `user._id` en vez de `user.userId`.
-- Export duplicado de `RocketChatAttachment` en `src/rocketchat/index.ts`.
+- `IncomingMessage.mentions` declared (sent by Rocket.Chat DDP); approver check used `user._id`
+  instead of `user.userId`.
+- `readSessionUpdatedAt` (deprecated, removed in Jan 2027) → `readSessionUpdatedAtAsync`.
+- Duplicate `RocketChatAttachment` export in `src/rocketchat/index.ts`.
+
+### Added
+
+- `authTokenFile` is now actually read (it was declared in the config schema but ignored).
+- Environment fallbacks with `OPENCLAW_` prefix: `OPENCLAW_ROCKETCHAT_AUTH_TOKEN`,
+  `OPENCLAW_ROCKETCHAT_USER_ID`, `OPENCLAW_ROCKETCHAT_URL` (default account, only when not set in config).
+- Monitor logs go through the gateway's `ctx.log` (visible in `journalctl`), including
+  `connecting realtime (DDP) to …` and `realtime connect failed: …`.
+- CI workflow: typecheck, build, `dist/` up-to-date check, import smoke test, unit tests.
 
 ### Changed
 
-- Se publica compilado: `main` y `openclaw.extensions` apuntan a `dist/index.js` (Node 24 no hace type-stripping dentro de `node_modules`). `dist/` se versiona para poder instalar directo desde git.
-- Scripts `build` y `typecheck`; `tsconfig.json` añadido.
+- Shipped compiled: `main` and `openclaw.extensions` point to `dist/index.js` (Node 24 does not
+  strip types inside `node_modules`). `dist/` is committed so the plugin can be installed from git.
+- `build` / `typecheck` scripts and `tsconfig.json`; `openclaw` added as devDependency for types.
 - `peerDependencies.openclaw` → `>=2026.11.6`.
+- Not published to npm (the `@cloudrise` scope belongs to upstream): install from git tags.
+  The npm publish workflow was removed; `auto-release.yml` only creates the tag and GitHub Release.
 
 ## [0.7.1] - 2026-06-19
 

@@ -1,9 +1,26 @@
 # OpenClaw Rocket.Chat Channel Plugin
 
-[![npm](https://img.shields.io/npm/v/@cloudrise/openclaw-channel-rocketchat)](https://www.npmjs.com/package/@cloudrise/openclaw-channel-rocketchat)
-[![license](https://img.shields.io/npm/l/@cloudrise/openclaw-channel-rocketchat)](LICENSE)
+[![CI](https://github.com/WwagnerPO/openclaw-channel-rocketchat/actions/workflows/ci.yml/badge.svg)](https://github.com/WwagnerPO/openclaw-channel-rocketchat/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Neutral, self-host friendly Rocket.Chat channel plugin for **OpenClaw** (Cloudrise-maintained).
+Neutral, self-host friendly Rocket.Chat channel plugin for **OpenClaw**.
+
+> ## ⚠️ This is a community fork
+>
+> Fork of [`cloudrise-network/openclaw-channel-rocketchat`](https://github.com/cloudrise-network/openclaw-channel-rocketchat),
+> which has had no npm release since v0.6.1 (Feb 2026). **v0.6.1 does not work on OpenClaw 2026.11.x**
+> (`ERR_PACKAGE_PATH_NOT_EXPORTED`, `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, or the channel
+> silently hangs at `starting Rocket.Chat channel`).
+>
+> | | |
+> |---|---|
+> | Fork version | **0.8.0** |
+> | Tested with | OpenClaw **2026.11.6**, Node **24**, Rocket.Chat self-hosted |
+> | Install | from git (not published to npm, see [Install](#install)) |
+> | Changes vs upstream | see [CHANGELOG.md](CHANGELOG.md#080---2026-11-20-wwagnerpo-fork) |
+>
+> The package name is kept as `@cloudrise/openclaw-channel-rocketchat` and the plugin id as
+> `openclaw-channel-rocketchat`, so existing configs and paths keep working: the fork is a drop-in replacement.
 
 - **Inbound:** Rocket.Chat Realtime (DDP/WebSocket) subscribe to `stream-room-messages`
 - **Outbound:** Rocket.Chat REST `chat.postMessage`
@@ -11,6 +28,13 @@ Neutral, self-host friendly Rocket.Chat channel plugin for **OpenClaw** (Cloudri
 > **Note:** OpenClaw uses JSON configuration (`~/.openclaw/openclaw.json`). All examples below use JSON format.
 
 ## Upgrade notices
+
+### v0.8.0 (fork) - OpenClaw 2026.11 / Node 24
+
+- Install from git instead of npm (see [Install](#install)); config and plugin id are unchanged.
+- Connection failures are now logged (`realtime connect failed: <reason>`) instead of hanging silently.
+- The token can live outside `openclaw.json` (`authTokenFile` or `OPENCLAW_ROCKETCHAT_AUTH_TOKEN`).
+  If you keep `authToken` in `openclaw.json`, it takes precedence: update it when you regenerate the token.
 
 ### v0.3.0 - DM pairing support
 
@@ -50,6 +74,7 @@ If you were using the old Clawdbot-era package:
 
 - Chad (AI assistant running in OpenClaw) - primary implementer
 - Marshal Morse - project owner, requirements, infrastructure, and testing
+- WwagnerPO - fork maintainer (OpenClaw 2026.11 compatibility, v0.8.0+)
 
 ## Quickstart (5-10 minutes)
 
@@ -59,17 +84,11 @@ If you were using the old Clawdbot-era package:
 
 2) **Add the bot user to the rooms** you want it to monitor (channels/private groups). For DMs, ensure users can message the bot.
 
-3) **Install + enable the plugin in OpenClaw** (`~/.openclaw/openclaw.json`)
+3) **Install the plugin from git** (see [Install](#install)), then **enable it** in `~/.openclaw/openclaw.json`
 
 ```json
 {
   "plugins": {
-    "installs": {
-      "rocketchat": {
-        "source": "npm",
-        "spec": "@cloudrise/openclaw-channel-rocketchat"
-      }
-    },
     "entries": {
       "openclaw-channel-rocketchat": {
         "enabled": true
@@ -145,27 +164,43 @@ openclaw message send --channel rocketchat --to room:GENERAL --message "/model q
 
 ## Install
 
-### Install from npm
+### Install from git (this fork)
+
+The npm package `@cloudrise/openclaw-channel-rocketchat` is the old upstream release (v0.6.1) and
+**does not work on OpenClaw 2026.11+**. Install this fork from git instead. `dist/` is committed, so
+nothing is compiled on install:
 
 ```bash
-npm install @cloudrise/openclaw-channel-rocketchat
+cd ~/.openclaw/workspace   # wherever OpenClaw resolves plugins from
+# Pin a release tag (recommended)
+npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.0
+# or follow the main branch
+npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git
 ```
+
+Check what got installed:
+
+```bash
+jq -r '.version, .main' node_modules/@cloudrise/openclaw-channel-rocketchat/package.json
+# 0.8.0
+# dist/index.js
+```
+
+> Node 24 refuses to strip TypeScript types inside `node_modules`, so the plugin must be loaded
+> from the compiled `dist/index.js` (which `package.json` already points to).
 
 ### Configure OpenClaw to load the plugin
 
 You need to tell OpenClaw to load the installed plugin.
 
-**Option A (recommended): install via `plugins.installs` (npm source)**
+**Option A (recommended): installed in the OpenClaw workspace + enabled**
+
+If you ran `npm install git+…` inside the directory OpenClaw resolves plugins from
+(e.g. `~/.openclaw/workspace`), enabling the entry is enough:
 
 ```json
 {
   "plugins": {
-    "installs": {
-      "rocketchat": {
-        "source": "npm",
-        "spec": "@cloudrise/openclaw-channel-rocketchat"
-      }
-    },
     "entries": {
       "openclaw-channel-rocketchat": {
         "enabled": true
@@ -174,6 +209,9 @@ You need to tell OpenClaw to load the installed plugin.
   }
 }
 ```
+
+> Do **not** use `plugins.installs` with `"source": "npm", "spec": "@cloudrise/openclaw-channel-rocketchat"`:
+> that pulls the old upstream v0.6.1 from npm, which is broken on OpenClaw 2026.11+.
 
 **Option B: load from a local path**
 
@@ -282,6 +320,39 @@ Notes:
 }
 ```
 
+### Keeping the token out of `openclaw.json` (recommended)
+
+The token is resolved in this order (first match wins):
+
+1. `channels.rocketchat.authToken` in `openclaw.json`
+2. `channels.rocketchat.authTokenFile`: path to a file containing only the token (e.g. `chmod 600`)
+3. Environment (default account only): `ROCKETCHAT_AUTH_TOKEN` or `OPENCLAW_ROCKETCHAT_AUTH_TOKEN`
+
+`userId` and `baseUrl` also fall back to `ROCKETCHAT_USER_ID` / `OPENCLAW_ROCKETCHAT_USER_ID` and
+`ROCKETCHAT_URL` / `OPENCLAW_ROCKETCHAT_URL`.
+
+> ⚠️ If `authToken` is present in `openclaw.json` it **always wins**. A stale token left there
+> after you regenerate it is the most common cause of `DDP login failed: User not found [401]`.
+
+Example with systemd (gateway running as a user service):
+
+```ini
+# ~/.config/systemd/user/openclaw-gateway.service.d/secrets-env.conf
+[Service]
+EnvironmentFile=/root/.openclaw/secrets.env
+```
+
+```bash
+# /root/.openclaw/secrets.env  (chmod 600)
+OPENCLAW_ROCKETCHAT_AUTH_TOKEN=<token>
+```
+
+and remove `authToken` from the config:
+
+```bash
+jq 'del(.channels.rocketchat.authToken)' ~/.openclaw/openclaw.json > /tmp/oc.json && mv /tmp/oc.json ~/.openclaw/openclaw.json
+```
+
 ### Multiple accounts / multiple Rocket.Chat servers
 
 You can configure multiple Rocket.Chat "accounts" under `channels.rocketchat.accounts` and choose which one to use via `accountId` when sending.
@@ -367,10 +438,17 @@ Typing indicators are emitted via DDP `stream-notify-room` using `<RID>/user-act
 ## Development
 
 ```bash
-git clone git@github.com:cloudrise-network/openclaw-channel-rocketchat.git
+git clone https://github.com/WwagnerPO/openclaw-channel-rocketchat.git
 cd openclaw-channel-rocketchat
-npm install
+npm ci --ignore-scripts
+
+npm run typecheck   # tsc against the openclaw version pinned in package-lock (devDependency)
+npm run build       # writes dist/ — commit it! CI fails if dist/ is out of date
+node test/approval-commands.test.mjs
 ```
+
+When OpenClaw changes its plugin SDK again, bump the `openclaw` devDependency and run
+`npm run typecheck`: the type errors are the migration map.
 
 Local smoke tests (uses env vars; see `.env.example`):
 
@@ -382,31 +460,20 @@ node test-chad.mjs
 node test-realtime.mjs
 ```
 
-## Packaging + publishing (no secrets)
+## Releasing (fork)
 
-Before publishing:
+This fork is **not published to npm** (the `@cloudrise` scope belongs to upstream). To release:
 
-1) Run a quick secret scan (at minimum):
+1. Bump `version` in `package.json` and `openclaw.plugin.json`, add a `CHANGELOG.md` entry.
+2. `npm run build` and commit `dist/`.
+3. Merge to `main`. `.github/workflows/auto-release.yml` creates the `vX.Y.Z` tag and GitHub Release.
+4. Users install with `npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#vX.Y.Z`.
 
-```bash
-grep -RIn --exclude-dir=node_modules --exclude=package-lock.json -E "npm_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|xox[baprs]-|authToken\s*[:=]\s*\"" .
-```
-
-2) Bump version in `package.json`.
-
-3) Verify the tarball:
+Never commit real tokens. Quick scan before pushing:
 
 ```bash
-npm pack
+grep -RIn --exclude-dir=node_modules --exclude-dir=dist --exclude=package-lock.json -E "npm_[A-Za-z0-9]+|ghp_[A-Za-z0-9]+|xox[baprs]-|authToken\s*[:=]\s*\"[A-Za-z0-9_-]{20,}" .
 ```
-
-4) Publish:
-
-```bash
-npm publish
-```
-
-(There is also a GitHub Actions workflow in `.github/workflows/publish.yml`.)
 
 ## DM Access Control
 
@@ -661,6 +728,44 @@ Unlike public platforms (Telegram, WhatsApp, Signal), Rocket.Chat is typically:
 
 So **server-level authentication acts as the primary gate**. Use `owner-approval` or `pairing` if you need per-user approval on top of that.
 
+## Troubleshooting (OpenClaw 2026.11+)
+
+Plugin logs show up in the gateway journal:
+
+```bash
+journalctl --user -u openclaw-gateway.service -f | grep -iE "rocket|ddp|realtime"
+```
+
+A healthy start looks like:
+
+```
+[rocketchat] [default] starting Rocket.Chat channel
+[rocketchat] [default] connecting realtime (DDP) to http://chat.example.com as userId=...
+[rocketchat] [default] Connected to Rocket.Chat realtime
+[rocketchat] [default] Refresh subscriptions: subscribing to N rooms
+```
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ERR_PACKAGE_PATH_NOT_EXPORTED ... './plugin-sdk'` | upstream v0.6.1 imports the removed SDK barrel | install this fork |
+| `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` | raw `.ts` loaded from `node_modules` on Node 24 | install this fork (loads `dist/index.js`) |
+| Stuck at `starting Rocket.Chat channel`, no error (≤ v0.7.x) | DDP login failure was swallowed and `connect()` never resolved | v0.8.0 logs the reason and times out after 30 s |
+| `realtime connect failed: DDP login failed: User not found [401]` | wrong/old token (often a stale `authToken` in `openclaw.json`) | see [Keeping the token out of openclaw.json](#keeping-the-token-out-of-openclawjson-recommended) |
+| `realtime connect failed: DDP connect/login timed out after 30s` | Rocket.Chat unreachable or websocket blocked by a proxy | check `baseUrl`, and that `ws(s)://<host>/websocket` is reachable |
+| Gateway stuck in `deactivating (stop-sigterm)` on restart (≤ v0.7.x) | channel did not honour abort while connecting | fixed in v0.8.0; for a stuck process: `systemctl --user kill -s SIGKILL openclaw-gateway.service` |
+
+Verify the token outside OpenClaw (should print `{"ok":"<userId>"}`):
+
+```bash
+node -e '
+const WS=require("ws");const ws=new WS("ws://chat.example.com/websocket");
+ws.on("open",()=>ws.send(JSON.stringify({msg:"connect",version:"1",support:["1"]})));
+ws.on("message",d=>{const m=JSON.parse(d);if(m.msg==="ping")return ws.send("{\"msg\":\"pong\"}");
+if(m.msg==="connected")ws.send(JSON.stringify({msg:"method",method:"login",id:"1",params:[{resume:process.env.ROCKETCHAT_AUTH_TOKEN}]}));
+if(m.msg==="result"){console.log(JSON.stringify(m.error||{ok:m.result.id}));process.exit(0)}});
+setTimeout(()=>{console.log("timeout");process.exit(1)},10000)'
+```
+
 ## Troubleshooting (Upgrades from Early Versions)
 
 If you're upgrading from Clawdbot or early OpenClaw versions, here are common issues:
@@ -703,9 +808,8 @@ rm ~/.openclaw/extensions/rocketchat  # if it's a broken symlink
 # Reinstall the plugin
 openclaw doctor --fix
 # or manually:
-npm pack @cloudrise/openclaw-channel-rocketchat
-tar -xzf cloudrise-openclaw-channel-rocketchat-*.tgz
-mv package ~/.openclaw/extensions/openclaw-channel-rocketchat
+# (fork) install from git, see "Install from git" above
+cd ~/.openclaw/workspace && npm install git+https://github.com/WwagnerPO/openclaw-channel-rocketchat.git#v0.8.0
 ```
 
 ### Config File Location Changed
@@ -776,7 +880,8 @@ openclaw gateway start
 1. Log in to Rocket.Chat as the bot user
 2. Go to **My Account → Personal Access Tokens**
 3. Generate a new token
-4. Update `~/.openclaw/openclaw.json`:
+4. Update the token **wherever it is resolved from** (`openclaw.json`, `authTokenFile` or the
+   environment). Remember `authToken` in `openclaw.json` takes precedence over the environment:
 
 ```json
 {

@@ -5,6 +5,7 @@
  * features like message streaming, typing indicators, and presence.
  */
 import WebSocket from "ws";
+const CONNECT_TIMEOUT_MS = 30_000;
 export class RocketChatRealtime {
     ws = null;
     opts;
@@ -62,13 +63,47 @@ export class RocketChatRealtime {
                 // Send DDP connect message
                 this.send({ msg: "connect", version: "1", support: ["1"] });
             });
-            this.ws.on("message", async (data) => {
+            // Never hang forever: fail connect() if DDP connect + login don't finish in time.
+            const connectTimer = setTimeout(() => {
+                if (settled)
+                    return;
+                const err = new Error(`DDP connect/login timed out after ${CONNECT_TIMEOUT_MS / 1000}s (${wsUrl})`);
+                rejectOnce(err);
                 try {
-                    const msg = JSON.parse(data.toString());
-                    await this.handleMessage(msg, resolveOnce);
+                    this.ws?.terminate();
+                }
+                catch { /* ignore */ }
+            }, CONNECT_TIMEOUT_MS);
+            connectTimer.unref?.();
+            this.ws.on("message", async (data) => {
+                let msg;
+                try {
+                    msg = JSON.parse(data.toString());
                 }
                 catch (err) {
                     this.opts.logger?.debug?.(`Failed to parse message: ${err}`);
+                    return;
+                }
+                try {
+                    await this.handleMessage(msg, () => {
+                        clearTimeout(connectTimer);
+                        resolveOnce();
+                    });
+                }
+                catch (err) {
+                    const e = err instanceof Error ? err : new Error(String(err));
+                    if (msg.msg === "connected" && !this.isConnected) {
+                        // Login (resume token) failed: surface it instead of hanging.
+                        clearTimeout(connectTimer);
+                        rejectOnce(new Error(`DDP login failed: ${e.message}`));
+                        try {
+                            this.ws?.close();
+                        }
+                        catch { /* ignore */ }
+                    }
+                    else {
+                        this.opts.onError?.(e);
+                    }
                 }
             });
             this.ws.on("close", (_code, reason) => {
@@ -118,7 +153,7 @@ export class RocketChatRealtime {
                     if (pending) {
                         this.pendingCalls.delete(msg.id);
                         if (msg.error) {
-                            pending.reject(new Error(msg.error.message));
+                            pending.reject(new Error(msg.error.message || msg.error.reason || String(msg.error.error ?? JSON.stringify(msg.error))));
                         }
                         else {
                             pending.resolve(msg.result);

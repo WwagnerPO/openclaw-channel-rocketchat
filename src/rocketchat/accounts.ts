@@ -2,6 +2,8 @@
  * Rocket.Chat account resolution
  */
 
+import { readFileSync } from "node:fs";
+
 import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
 
 export type RocketChatReplyMode = "thread" | "channel" | "auto";
@@ -140,8 +142,22 @@ export function resolveRocketChatAccount(opts: {
 
   if (authToken) {
     authTokenSource = "config";
-  } else if (accountId === DEFAULT_ACCOUNT_ID) {
-    const envToken = process.env.ROCKETCHAT_AUTH_TOKEN;
+  } else if (config.authTokenFile) {
+    // Token stored in a file (e.g. chmod 600), keeps secrets out of openclaw.json.
+    try {
+      const fileToken = readFileSync(String(config.authTokenFile), "utf8").trim();
+      if (fileToken) {
+        authToken = fileToken;
+        authTokenSource = "file";
+      }
+    } catch (err) {
+      console.warn(
+        `[rocketchat] cannot read authTokenFile "${config.authTokenFile}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  if (!authToken && accountId === DEFAULT_ACCOUNT_ID) {
+    const envToken = process.env.ROCKETCHAT_AUTH_TOKEN || process.env.OPENCLAW_ROCKETCHAT_AUTH_TOKEN;
     if (envToken) {
       authToken = envToken;
       authTokenSource = "env";
@@ -151,13 +167,13 @@ export function resolveRocketChatAccount(opts: {
   // Resolve user ID from config or env
   let userId = config.userId as string | undefined;
   if (!userId && accountId === DEFAULT_ACCOUNT_ID) {
-    userId = process.env.ROCKETCHAT_USER_ID;
+    userId = process.env.ROCKETCHAT_USER_ID || process.env.OPENCLAW_ROCKETCHAT_USER_ID;
   }
 
   // Resolve base URL from config or env
   let baseUrl = config.baseUrl as string | undefined;
   if (!baseUrl && accountId === DEFAULT_ACCOUNT_ID) {
-    baseUrl = process.env.ROCKETCHAT_URL;
+    baseUrl = process.env.ROCKETCHAT_URL || process.env.OPENCLAW_ROCKETCHAT_URL;
   }
 
   return {
