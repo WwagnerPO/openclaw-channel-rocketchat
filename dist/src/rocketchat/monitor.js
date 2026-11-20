@@ -333,10 +333,16 @@ export async function monitorRocketChatProvider(opts) {
     });
     // Connect and subscribe to all rooms
     logger.info?.(`[${account.accountId}] connecting realtime (DDP) to ${baseUrl} as userId=${userId}`);
+    // Abort (gateway stop/restart) must also interrupt an in-flight connect.
+    const onAbort = () => realtime.disconnect();
+    if (opts.abortSignal?.aborted)
+        throw new Error("aborted before connect");
+    opts.abortSignal?.addEventListener("abort", onAbort, { once: true });
     try {
         await realtime.connect();
     }
     catch (err) {
+        opts.abortSignal?.removeEventListener("abort", onAbort);
         logger.error?.(`[${account.accountId}] realtime connect failed: ${err instanceof Error ? err.message : String(err)}`);
         realtime.disconnect();
         throw err;

@@ -14,6 +14,7 @@ Compatibilidad con OpenClaw 2026.11.6 (Node 24). Basado en la rama upstream `cho
 - `IncomingMessage.mentions` declarado (lo envía el DDP de Rocket.Chat); aprobadores usaban `user._id` en vez de `user.userId`.
 - Export duplicado de `RocketChatAttachment` en `src/rocketchat/index.ts`.
 - **`connect()` podía colgarse para siempre**: si el login DDP (resume token) fallaba, el error se tragaba como "Failed to parse message" (debug) y no había timeout. Ahora el login fallido rechaza `connect()` con el motivo, y hay un timeout de 30 s.
+- El abort del gateway (stop/restart) interrumpe también un `connect()` en curso; antes el proceso se quedaba en `deactivating`.
 - Los logs del monitor usan `ctx.log` del gateway (salen en journalctl) y se loguea el inicio/fallo de la conexión realtime.
 
 ### Changed
