@@ -1337,7 +1337,7 @@ async function handleIncomingMessage(
 
   // Get previous timestamp for envelope
   const previousTimestamp = storePath
-    ? core.channel?.session?.readSessionUpdatedAt?.({
+    ? await core.channel?.session?.readSessionUpdatedAtAsync?.({
         storePath,
         sessionKey: route.sessionKey,
       })
