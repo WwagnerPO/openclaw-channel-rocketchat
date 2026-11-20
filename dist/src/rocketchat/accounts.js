@@ -39,7 +39,7 @@ export function resolveRocketChatAccount(opts) {
         authTokenSource = "config";
     }
     else if (accountId === DEFAULT_ACCOUNT_ID) {
-        const envToken = process.env.ROCKETCHAT_AUTH_TOKEN;
+        const envToken = process.env.ROCKETCHAT_AUTH_TOKEN || process.env.OPENCLAW_ROCKETCHAT_AUTH_TOKEN;
         if (envToken) {
             authToken = envToken;
             authTokenSource = "env";
@@ -48,12 +48,12 @@ export function resolveRocketChatAccount(opts) {
     // Resolve user ID from config or env
     let userId = config.userId;
     if (!userId && accountId === DEFAULT_ACCOUNT_ID) {
-        userId = process.env.ROCKETCHAT_USER_ID;
+        userId = process.env.ROCKETCHAT_USER_ID || process.env.OPENCLAW_ROCKETCHAT_USER_ID;
     }
     // Resolve base URL from config or env
     let baseUrl = config.baseUrl;
     if (!baseUrl && accountId === DEFAULT_ACCOUNT_ID) {
-        baseUrl = process.env.ROCKETCHAT_URL;
+        baseUrl = process.env.ROCKETCHAT_URL || process.env.OPENCLAW_ROCKETCHAT_URL;
     }
     return {
         accountId,

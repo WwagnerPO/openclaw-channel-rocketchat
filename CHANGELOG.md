@@ -19,6 +19,7 @@ Compatibilidad con OpenClaw 2026.11.6 (Node 24). Basado en la rama upstream `cho
 
 ### Changed
 
+- Variables de entorno: además de `ROCKETCHAT_AUTH_TOKEN`/`ROCKETCHAT_USER_ID`/`ROCKETCHAT_URL` se aceptan con prefijo `OPENCLAW_` (cuenta `default`, solo si no están en config). Permite sacar el token de `openclaw.json`.
 - Se publica compilado: `main` y `openclaw.extensions` apuntan a `dist/index.js` (Node 24 no hace type-stripping dentro de `node_modules`). `dist/` se versiona para poder instalar directo desde git.
 - Scripts `build` y `typecheck`; `tsconfig.json` añadido.
 - `peerDependencies.openclaw` → `>=2026.11.6`.
