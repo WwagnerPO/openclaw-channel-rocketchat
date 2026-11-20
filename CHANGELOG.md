@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.1] - 2026-11-20 (WwagnerPO fork)
+
+### Added
+
+- **Reply de-duplication**: identical consecutive reply payloads within the same inbound turn are
+  dropped, so the bot no longer posts the same answer twice when a session resumes/finalizes.
+  Ported from [cloudrise-network/openclaw-channel-rocketchat#9](https://github.com/cloudrise-network/openclaw-channel-rocketchat/pull/9) by @ggruber4711.
+- `RealtimeOpts.connectTimeoutMs` (default 30000) to tune the DDP connect + login timeout.
+- Test suite (`npm test`, `node:test`, runs in CI):
+  - `realtime-connect`: fake DDP server — successful login, rejected login (reason surfaced),
+    silent server (timeout) and abort during connect.
+  - `accounts-token`: token resolution order (config > `authTokenFile` > env) and env fallbacks.
+  - `reply-dedupe`.
+
 ## [0.8.0] - 2026-11-20 (WwagnerPO fork)
 
 Compatibility with OpenClaw 2026.11.6 / Node 24. Based on the upstream branch

@@ -5,7 +5,7 @@
  * features like message streaming, typing indicators, and presence.
  */
 import WebSocket from "ws";
-const CONNECT_TIMEOUT_MS = 30_000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
 export class RocketChatRealtime {
     ws = null;
     opts;
@@ -64,16 +64,17 @@ export class RocketChatRealtime {
                 this.send({ msg: "connect", version: "1", support: ["1"] });
             });
             // Never hang forever: fail connect() if DDP connect + login don't finish in time.
+            const connectTimeoutMs = this.opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
             const connectTimer = setTimeout(() => {
                 if (settled)
                     return;
-                const err = new Error(`DDP connect/login timed out after ${CONNECT_TIMEOUT_MS / 1000}s (${wsUrl})`);
+                const err = new Error(`DDP connect/login timed out after ${connectTimeoutMs / 1000}s (${wsUrl})`);
                 rejectOnce(err);
                 try {
                     this.ws?.terminate();
                 }
                 catch { /* ignore */ }
-            }, CONNECT_TIMEOUT_MS);
+            }, connectTimeoutMs);
             connectTimer.unref?.();
             this.ws.on("message", async (data) => {
                 let msg;

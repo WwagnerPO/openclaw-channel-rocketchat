@@ -11,6 +11,7 @@ import { parseApprovalCommand, parseRoomCommand, buildApprovalRequestMessage, bu
 import { getRoomApprovedUsers, isRoomUserApproved, addRoomUser, removeRoomUser, formatRoomUsersList, } from "./room-users.js";
 import { isApprover, isNotifyChannel, fetchUserByUsername, } from "./roles.js";
 import { getRocketChatRuntime } from "../runtime.js";
+import { createRocketChatReplyDeduper } from "./reply-dedupe.js";
 import { resolveRocketChatAccount } from "./accounts.js";
 import { createRocketChatClient, fetchRocketChatMe, fetchRocketChatRoom, fetchRocketChatSubscriptions, normalizeRocketChatBaseUrl, sendRocketChatTyping, RocketChatRateLimitError, } from "./client.js";
 import { RocketChatRealtime } from "./realtime.js";
@@ -1238,6 +1239,7 @@ async function handleIncomingMessage(msg, account, cfg, core, getRoom, logger, s
         }
     }
     startTypingAfterDelay();
+    const replyDeduper = createRocketChatReplyDeduper();
     try {
         // Wire up responsePrefix support (e.g. messages.responsePrefix: "({model}) ")
         // so Rocket.Chat replies can include the selected model name.
@@ -1250,8 +1252,11 @@ async function handleIncomingMessage(msg, account, cfg, core, getRoom, logger, s
                 responsePrefixContextProvider: prefix.responsePrefixContextProvider,
                 deliver: async (payload) => {
                     const text = payload.text ?? "";
-                    if (!text.trim())
+                    if (!replyDeduper.shouldDeliver(text)) {
+                        if (text.trim())
+                            logger.debug?.(`Skipping duplicate Rocket.Chat reply for message ${msg._id}`);
                         return;
+                    }
                     const replyToId = resolvedReplyMode === "thread" ? (msg.tmid ?? msg._id) : undefined;
                     await sendMessageRocketChat(`room:${roomId}`, text, {
                         accountId: account.accountId,

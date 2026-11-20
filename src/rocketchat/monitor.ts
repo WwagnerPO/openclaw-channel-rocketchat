@@ -61,6 +61,7 @@ import {
 } from "./roles.js";
 
 import { getRocketChatRuntime } from "../runtime.js";
+import { createRocketChatReplyDeduper } from "./reply-dedupe.js";
 import { resolveRocketChatAccount, type ResolvedRocketChatAccount } from "./accounts.js";
 import {
   createRocketChatClient,
@@ -1503,6 +1504,7 @@ async function handleIncomingMessage(
   }
 
   startTypingAfterDelay();
+  const replyDeduper = createRocketChatReplyDeduper();
 
   try {
     // Wire up responsePrefix support (e.g. messages.responsePrefix: "({model}) ")
@@ -1517,7 +1519,10 @@ async function handleIncomingMessage(
         responsePrefixContextProvider: prefix.responsePrefixContextProvider,
         deliver: async (payload) => {
           const text = (payload as { text?: string }).text ?? "";
-          if (!text.trim()) return;
+          if (!replyDeduper.shouldDeliver(text)) {
+            if (text.trim()) logger.debug?.(`Skipping duplicate Rocket.Chat reply for message ${msg._id}`);
+            return;
+          }
 
           const replyToId = resolvedReplyMode === "thread" ? (msg.tmid ?? msg._id) : undefined;
 
