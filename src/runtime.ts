@@ -1,25 +1,22 @@
 /**
- * Runtime context for Rocket.Chat plugin
+ * Runtime context for Rocket.Chat plugin.
+ *
+ * OpenClaw >= 2026.11 passes a `PluginRuntime` (api.runtime) to plugins.
+ * It exposes `config`, `logging`, `channel`, ... — not the CLI `RuntimeEnv`
+ * (log/error/exit). Typing it as `RuntimeEnv` hid API drift behind `?.`.
  */
 
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
+import type { PluginRuntime } from "openclaw/plugin-sdk/core";
 
-let rocketChatRuntime: RuntimeEnv | null = null;
+let rocketChatRuntime: PluginRuntime | null = null;
 
-export function setRocketChatRuntime(runtime: RuntimeEnv): void {
+export function setRocketChatRuntime(runtime: PluginRuntime): void {
   rocketChatRuntime = runtime;
 }
 
-export function getRocketChatRuntime(): RuntimeEnv {
+export function getRocketChatRuntime(): PluginRuntime {
   if (!rocketChatRuntime) {
-    // Return a minimal runtime for standalone usage
-    return {
-      log: console.log,
-      error: console.error,
-      exit: (code: number): never => {
-        throw new Error(`exit ${code}`);
-      },
-    } as RuntimeEnv;
+    throw new Error("[rocketchat] plugin runtime not initialized (register() not called)");
   }
   return rocketChatRuntime;
 }

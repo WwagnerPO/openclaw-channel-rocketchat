@@ -6,11 +6,12 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import type { ChannelAccountSnapshot } from "openclaw/plugin-sdk/channel-contract";
-import type { OpenClawConfig } from "openclaw/plugin-sdk/config-types";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { PluginRuntime } from "openclaw/plugin-sdk/core";
 import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime-env";
 
 import { buildRandomTempFilePath } from "openclaw/plugin-sdk/temp-path";
-import { createReplyPrefixContext } from "openclaw/plugin-sdk/channel-message";
+import { createReplyPrefixContext } from "openclaw/plugin-sdk/channel-outbound";
 
 import {
   readChannelAllowFromStore,
@@ -157,7 +158,7 @@ async function checkIsApprover(
   const user = await fetchUserByUsername(client, username);
   if (!user) return false;
   
-  return isApprover(client, user._id, username, approverPatterns);
+  return isApprover(client, user.userId, username, approverPatterns);
 }
 
 /**
@@ -280,7 +281,7 @@ export async function monitorRocketChatProvider(
     debug: console.log,
     error: console.error,
   };
-  const cfg = opts.config ?? core?.config?.loadConfig?.() ?? {};
+  const cfg = opts.config ?? (core?.config?.current?.() as OpenClawConfig | undefined) ?? {};
 
   const account = resolveRocketChatAccount({
     cfg,
@@ -390,7 +391,7 @@ export async function monitorRocketChatProvider(
       logger.info?.(`[${account.accountId}] Disconnected: ${reason ?? "unknown"}`);
       opts.statusSink?.({
         connected: false,
-        lastDisconnect: { at: Date.now(), reason },
+        lastDisconnect: { at: Date.now(), error: reason },
       });
     },
     onError: (err) => {
@@ -497,7 +498,7 @@ async function handleIncomingMessage(
   msg: IncomingMessage,
   account: ResolvedRocketChatAccount,
   cfg: OpenClawConfig,
-  core: RuntimeEnv,
+  core: PluginRuntime,
   getRoom: (roomId: string) => Promise<RocketChatRoom | null>,
   logger: { info?: (msg: string) => void; debug?: (msg: string) => void; error?: (msg: string) => void },
   statusSink?: (patch: { lastInboundAt?: number; lastOutboundAt?: number }) => void,
@@ -1298,7 +1299,7 @@ async function handleIncomingMessage(
     channel: "rocketchat",
     accountId: account.accountId,
     peer: {
-      kind: isGroup ? "group" : "dm",
+      kind: isGroup ? "group" : "direct",
       id: isGroup ? roomId : senderId,
     },
   }) ?? {

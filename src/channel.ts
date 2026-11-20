@@ -144,7 +144,7 @@ export const rocketChatPlugin: ChannelPlugin<ResolvedRocketChatAccount> = {
   security: {
     resolveDmPolicy: ({ cfg, accountId, account }) => {
       const resolvedAccountId = accountId ?? account.accountId ?? DEFAULT_ACCOUNT_ID;
-      const rcConfig = (cfg as Record<string, unknown>).channels?.rocketchat;
+      const rcConfig = (cfg as { channels?: { rocketchat?: { accounts?: Record<string, unknown> } } }).channels?.rocketchat;
       const useAccountPath = Boolean(rcConfig?.accounts?.[resolvedAccountId]);
       const basePath = useAccountPath
         ? `channels.rocketchat.accounts.${resolvedAccountId}.`
@@ -213,7 +213,7 @@ export const rocketChatPlugin: ChannelPlugin<ResolvedRocketChatAccount> = {
     },
     buildChannelSummary: ({ snapshot }) => ({
       configured: snapshot.configured ?? false,
-      authTokenSource: snapshot.authTokenSource ?? "none",
+      tokenSource: snapshot.tokenSource ?? "none",
       running: snapshot.running ?? false,
       connected: snapshot.connected ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
@@ -248,7 +248,7 @@ export const rocketChatPlugin: ChannelPlugin<ResolvedRocketChatAccount> = {
       ctx.setStatus({
         accountId: account.accountId,
         baseUrl: account.baseUrl,
-        authTokenSource: account.authTokenSource,
+        tokenSource: account.authTokenSource,
       });
       ctx.log?.info(`[${account.accountId}] starting Rocket.Chat channel`);
       const cleanup = await monitorRocketChatProvider({

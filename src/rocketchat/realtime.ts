@@ -68,6 +68,7 @@ export type IncomingMessage = {
   file?: RocketChatFile;
   files?: RocketChatFile[];
   reactions?: Record<string, RocketChatReaction>;
+  mentions?: Array<{ _id: string; username?: string; name?: string }>;
   _updatedAt?: { $date: number } | string;
 };
 
